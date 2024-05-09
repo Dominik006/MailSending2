@@ -4,22 +4,12 @@ from email.mime.text import MIMEText
 import random
 import time
 import datetime
+import yaml
 
-def read_email_data(file_path):
+def read_yaml(file_path):
     with open(file_path, 'r') as file:
-        data = file.readlines()
-    recipients = [line.strip() for line in data]
-    return recipients
-
-def read_email_content(file_path):
-    with open(file_path, 'r') as file:
-        content = file.read()
-    return content
-
-def read_exceptions(file_path):
-    with open(file_path, 'r') as file:
-        exceptions = [line.strip() for line in file.readlines()]
-    return exceptions
+        data = yaml.safe_load(file)
+    return data
 
 def send_email(subject, body, recipients):
     from_email = 'your_email@example.com'
@@ -38,17 +28,23 @@ def send_email(subject, body, recipients):
     server.quit()
 
 def main():
-    recipients = read_email_data('recipients.txt')
-    exceptions = read_exceptions('exceptions.txt')
+    config = read_yaml('config.yaml')
+    recipients = config['recipients']
+    exceptions = config.get('exceptions', [])
     
     while True:
         # Randomize the time to avoid sending emails at the same time every day
-        random_seconds = random.randint(0, 1800)
-        time.sleep(random_seconds)
+        random_hours = random.randint(8, 9)
+        random_minutes = random.randint(0, 59)
+        random_seconds = random.randint(0, 59)
+        random_time = datetime.time(random_hours, random_minutes, random_seconds)
+        random_wait = datetime.datetime.combine(datetime.date.today(), random_time) - datetime.datetime.now()
+        if random_wait.total_seconds() > 0:
+            time.sleep(random_wait.total_seconds())
 
         now = datetime.datetime.now()
-        if now.hour == 8 and now.minute < 30:
-            start_content = read_email_content('start_content.txt')
+        if now.hour == random_hours and now.minute < 30:
+            start_content = config['start_content']
             send_email('Start pracy', start_content, recipients)
             
             # Wait until at least 8 hours and 10 minutes before sending end email
@@ -56,9 +52,8 @@ def main():
             
             # Check if today is not in exceptions
             if now.strftime('%Y-%m-%d') not in exceptions:
-                # Determine the filename based on the day of the week
                 day_of_week = now.strftime('%A').lower()
-                end_content = read_email_content(f'{day_of_week}_end.txt')
+                end_content = config.get('end_content', {}).get(day_of_week, '')
                 send_email('Koniec pracy', end_content, recipients)
 
 if __name__ == "__main__":
