@@ -1,57 +1,65 @@
-import yaml
-import datetime
 import smtplib
-from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import os
+from email.mime.text import MIMEText
+import random
+import time
+import datetime
 
-def load_recipients_from_yaml(file_path):
+def read_email_data(file_path):
     with open(file_path, 'r') as file:
-        recipients = yaml.safe_load(file)
+        data = file.readlines()
+    recipients = [line.strip() for line in data]
     return recipients
 
-def load_email_content_from_config(file_path, day_of_week):
+def read_email_content(file_path):
     with open(file_path, 'r') as file:
-        config = yaml.safe_load(file)
-    return config[day_of_week]
+        content = file.read()
+    return content
 
-def send_email(sender_email, sender_password, receiver_email, subject, message):
+def read_exceptions(file_path):
+    with open(file_path, 'r') as file:
+        exceptions = [line.strip() for line in file.readlines()]
+    return exceptions
+
+def send_email(subject, body, recipients):
+    from_email = 'your_email@example.com'
+    to_email = ', '.join(recipients)
+    
     msg = MIMEMultipart()
-    msg['From'] = sender_email
-    msg['To'] = receiver_email
+    msg['From'] = from_email
+    msg['To'] = to_email
     msg['Subject'] = subject
-    msg.attach(MIMEText(message, 'plain'))
-
-    server = smtplib.SMTP('smtp.outlook.com', 587)
+    msg.attach(MIMEText(body, 'plain'))
+    
+    server = smtplib.SMTP('smtp.example.com', 587)
     server.starttls()
-    server.login(sender_email, sender_password)
-    server.send_message(msg)
+    server.login(from_email, 'your_password')
+    server.sendmail(from_email, recipients, msg.as_string())
     server.quit()
 
 def main():
-    recipients = load_recipients_from_yaml('recipients.yaml')
-    today = datetime.date.today()
-    day_of_week = today.strftime('%A')
-    email_content = load_email_content_from_config('email_content.yaml', day_of_week)
+    recipients = read_email_data('recipients.txt')
+    exceptions = read_exceptions('exceptions.txt')
+    
+    while True:
+        # Randomize the time to avoid sending emails at the same time every day
+        random_seconds = random.randint(0, 1800)
+        time.sleep(random_seconds)
 
-    sender_email = 'your_email@outlook.com'
-    sender_password = 'your_password'
-
-    if datetime.datetime.now().time() < datetime.time(8, 0):
-        # Send start email between 8:00 and 9:30
-        for recipient in recipients:
-            subject = f"PF&DPT - praca {today} start"
-            message = email_content['start']
-            send_email(sender_email, sender_password, recipient, subject, message)
-        print("Start email sent.")
-
-    elif datetime.datetime.now().time() > datetime.time(8, 10):
-        # Send stop email not earlier than 8 hours and 10 minutes after start email
-        for recipient in recipients:
-            subject = f"PF&DPT - praca {today} stop"
-            message = email_content['stop']
-            send_email(sender_email, sender_password, recipient, subject, message)
-        print("Stop email sent.")
+        now = datetime.datetime.now()
+        if now.hour == 8 and now.minute < 30:
+            start_content = read_email_content('start_content.txt')
+            send_email('Start pracy', start_content, recipients)
+            
+            # Wait until at least 8 hours and 10 minutes before sending end email
+            time.sleep(29400)  # 8 hours and 10 minutes in seconds
+            
+            # Check if today is not in exceptions
+            if now.strftime('%Y-%m-%d') not in exceptions:
+                # Determine the filename based on the day of the week
+                day_of_week = now.strftime('%A').lower()
+                end_content = read_email_content(f'{day_of_week}_end.txt')
+                send_email('Koniec pracy', end_content, recipients)
 
 if __name__ == "__main__":
     main()
