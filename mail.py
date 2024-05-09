@@ -1,10 +1,8 @@
-import smtplib
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
 import random
 import time
 import datetime
 import yaml
+import win32com.client as win32
 
 def read_yaml(file_path):
     with open(file_path, 'r') as file:
@@ -12,20 +10,12 @@ def read_yaml(file_path):
     return data
 
 def send_email(subject, body, recipients):
-    from_email = 'your_email@example.com'
-    to_email = ', '.join(recipients)
-    
-    msg = MIMEMultipart()
-    msg['From'] = from_email
-    msg['To'] = to_email
-    msg['Subject'] = subject
-    msg.attach(MIMEText(body, 'plain'))
-    
-    server = smtplib.SMTP('smtp.example.com', 587)
-    server.starttls()
-    server.login(from_email, 'your_password')
-    server.sendmail(from_email, recipients, msg.as_string())
-    server.quit()
+    outlook = win32.Dispatch('Outlook.Application')
+    mail = outlook.CreateItem(0)
+    mail.Subject = subject
+    mail.Body = body
+    mail.To = ';'.join(recipients)
+    mail.Send()
 
 def main():
     config = read_yaml('config.yaml')
@@ -36,6 +26,9 @@ def main():
         # Randomize the time to avoid sending emails at the same time every day
         random_hours = random.randint(8, 9)
         random_minutes = random.randint(0, 59)
+        # Ensure that the random time is between 8:00 and 9:30
+        if random_hours == 9:
+            random_minutes = random.randint(0, 29)
         random_seconds = random.randint(0, 59)
         random_time = datetime.time(random_hours, random_minutes, random_seconds)
         random_wait = datetime.datetime.combine(datetime.date.today(), random_time) - datetime.datetime.now()
@@ -43,7 +36,8 @@ def main():
             time.sleep(random_wait.total_seconds())
 
         now = datetime.datetime.now()
-        if now.hour == random_hours and now.minute < 30:
+        # Check if the current time is between 8:00 and 9:30
+        if 8 <= now.hour < 10 or (now.hour == 9 and now.minute < 30):
             start_content = config['start_content']
             send_email('Start pracy', start_content, recipients)
             
