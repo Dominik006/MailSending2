@@ -1,54 +1,99 @@
-import random
-import time
-import datetime
 import yaml
-import win32com.client as win32
+import datetime
+import smtplib
 
-def read_yaml(file_path):
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+
+def load_recipients_from_yaml(file_path):
     with open(file_path, 'r') as file:
-        data = yaml.safe_load(file)
-    return data
+        recipients = yaml.safe_load(file)
+    return recipients
 
-def send_email(subject, body, recipients):
-    outlook = win32.Dispatch('Outlook.Application')
-    mail = outlook.CreateItem(0)
-    mail.Subject = subject
-    mail.Body = body
-    mail.To = ';'.join(recipients)
-    mail.Send()
+def load_last_start_time(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            last_start_time = yaml.safe_load(file)
+    except FileNotFoundError:
+        last_start_time = None
+    return last_start_time
+
+def load_last_end_time(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            last_end_time = yaml.safe_load(file)
+    except FileNotFoundError:
+        last_end_time = None
+    return last_end_time
+
+def save_time_to_yaml(file_path, time):
+    with open(file_path, 'w') as file:
+        yaml.dump(time, file)
+
+def send_email(sender_email, sender_password, receiver_email, subject, message):
+    msg = MIMEMultipart()
+    msg['From'] = sender_email
+    msg['To'] = receiver_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(message, 'plain'))
+
+    server = smtplib.SMTP('smtp.outlook.com', 587)
+    server.starttls()
+    server.login(sender_email, sender_password)
+    server.send_message(msg)
+    server.quit()
 
 def main():
-    config = read_yaml('config.yaml')
-    recipients = config['recipients']
-    exceptions = config.get('exceptions', [])
-    
-    while True:
-        # Randomize the time to avoid sending emails at the same time every day
-        random_hours = random.randint(8, 9)
-        random_minutes = random.randint(0, 59)
-        # Ensure that the random time is between 8:00 and 9:30
-        if random_hours == 9:
-            random_minutes = random.randint(0, 29)
-        random_seconds = random.randint(0, 59)
-        random_time = datetime.time(random_hours, random_minutes, random_seconds)
-        random_wait = datetime.datetime.combine(datetime.date.today(), random_time) - datetime.datetime.now()
-        if random_wait.total_seconds() > 0:
-            time.sleep(random_wait.total_seconds())
+    recipients = load_recipients_from_yaml('recipients.yaml')
+    sender_email = 'your_email@outlook.com'
+    sender_password = 'your_password'
+    current_time = datetime.datetime.now().time()
 
-        now = datetime.datetime.now()
-        # Check if the current time is between 8:00 and 9:30
-        if 8 <= now.hour < 10 or (now.hour == 9 and now.minute < 30):
-            start_content = config['start_content']
-            send_email('Start pracy', start_content, recipients)
-            
-            # Wait until at least 8 hours and 10 minutes before sending end email
-            time.sleep(29400)  # 8 hours and 10 minutes in seconds
-            
-            # Check if today is not in exceptions
-            if now.strftime('%Y-%m-%d') not in exceptions:
-                day_of_week = now.strftime('%A').lower()
-                end_content = config.get('end_content', {}).get(day_of_week, '')
-                send_email('Koniec pracy', end_content, recipients)
+    # Check if current time is between 8:00 and 9:30
+    if datetime.time(8, 0) <= current_time <= datetime.time(9, 30):
+        # Load last start time from file
+        last_start_time = load_last_start_time('last_start.yaml')
+
+        # If last start time is None or not today, send start email
+        today = datetime.date.today()
+        if last_start_time is None or last_start_time.get('date') != str(today):
+            today = datetime.date.today()
+            day_of_week = today.strftime('%A')
+            email_content = load_email_content_from_config('email_content.yaml', day_of_week)
+
+            for recipient in recipients:
+                subject = f"PF&DPT - praca {today} start"
+                message = email_content['start']
+                send_email(sender_email, sender_password, recipient, subject, message)
+            print("Start email sent.")
+
+            # Update last start time
+            save_time_to_yaml('last_start.yaml', {'date': str(today), 'time': str(datetime.datetime.now())})
+
+    else:
+        # Load last end time from file
+        last_end_time = load_last_end_time('last_end.yaml')
+
+        # If last end time is None or not today, check if 8h10min have passed since last start time
+        today = datetime.date.today()
+        if last_end_time is None or last_end_time.get('date') != str(today):
+            last_start_time = load_last_start_time('last_start.yaml')
+            if last_start_time is not None and last_start_time.get('date') == str(today):
+                start_time = datetime.datetime.strptime(last_start_time.get('time'), "%Y-%m-%d %H:%M:%S.%f")
+                elapsed_time = datetime.datetime.now() - start_time
+                if elapsed_time >= datetime.timedelta(hours=8, minutes=10):
+                    # Load email content and send end email
+                    day_of_week = today.strftime('%A')
+                    email_content = load_email_content_from_config('email_content.yaml', day_of_week)
+
+                    for recipient in recipients:
+                        subject = f"PF&DPT - praca {today} stop"
+                        message = email_content['stop']
+                        send_email(sender_email, sender_password, recipient, subject, message)
+                    print("Stop email sent.")
+
+                    # Update last end time
+                    save_time_to_yaml('last_end.yaml', {'date': str(today), 'time': str(datetime.datetime.now())})
 
 if __name__ == "__main__":
     main()
