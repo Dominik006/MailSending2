@@ -1,26 +1,28 @@
 recipients:
-  - recipient1@example.com
-  - recipient2@example.com
-  - recipient3@example.com
+  - dominik.majewski.ofc006@gmail.com
 
-start_content: |
-  Treść e-maila o początku pracy.
-
-end_content:
-  monday: |
-    Treść e-maila kończącego pracę na poniedziałek.
-  tuesday: |
-    Treść e-maila kończącego pracę na wtorek.
-  wednesday: |
-    Treść e-maila kończącego pracę na środę.
-  thurstday: |
-    Treść e-maila kończącego pracę na czwartek.
-  friday: |
-    Treść e-maila kończącego pracę na piątek.
-  saturday: |
-    Treść e-maila kończącego pracę na sobotę.
-  sunday: |
-    Treść e-maila kończącego pracę na niedzielę
+email_content:
+  Monday: 
+    start: "Treść wiadomości rozpoczynającej pracę w poniedziałek"
+    stop: "Treść e-maila kończącego pracę na poniedziałek. "
+  Tuesday: 
+    start: "Treść wiadomości rozpoczynającej pracę we wtore"
+    stop: "Treść e-maila kończącego pracę na wtorek. "
+  Wednesday: 
+    start: "Treść wiadomości rozpoczynającej pracę w środę"
+    stop: "Treść e-maila kończącego pracę na środę. "
+  Thurstday: 
+    start: "Treść wiadomości rozpoczynającej pracę w czwartek"
+    stop: "Treść e-maila kończącego pracę na czwartek. "
+  Friday: 
+    start: "Treść wiadomości rozpoczynającej pracę w piątek"
+    stop: "Treść e-maila kończącego pracę na piątek. "
+  Saturday: 
+    start: "Treść wiadomości rozpoczynającej pracę w sobotę"
+    stop: "Treść e-maila kończącego pracę na sobotę. "
+  Sunday: 
+    start: "Treść wiadomości rozpoczynającej pracę w niedzielę"
+    stop: "Treść e-maila kończącego pracę na niedzielę. "
   
 
 exceptions:

@@ -5,10 +5,10 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
-def load_recipients_from_yaml(file_path):
+def load_config(file_path):
     with open(file_path, 'r') as file:
-        recipients = yaml.safe_load(file)
-    return recipients
+        config = yaml.safe_load(file)
+    return config
 
 def load_last_start_time(file_path):
     try:
@@ -35,7 +35,7 @@ def send_email(sender_email, sender_password, receiver_email, subject, message):
     msg['From'] = sender_email
     msg['To'] = receiver_email
     msg['Subject'] = subject
-    msg.attach(MIMEText(message, 'plain'))
+    msg.attach(MIMEText(message, 'plain', 'utf-8'))
 
     server = smtplib.SMTP('smtp.outlook.com', 587)
     server.starttls()
@@ -44,13 +44,14 @@ def send_email(sender_email, sender_password, receiver_email, subject, message):
     server.quit()
 
 def main():
-    recipients = load_recipients_from_yaml('recipients.yaml')
-    sender_email = 'your_email@outlook.com'
-    sender_password = 'your_password'
+    config = load_config('config.yaml')
+    recipients = config.get('recipients', [])
+    sender_email = 'dominik.majewski006@outlook.com'
+    sender_password = '20062020Md+'
     current_time = datetime.datetime.now().time()
 
     # Check if current time is between 8:00 and 9:30
-    if datetime.time(8, 0) <= current_time <= datetime.time(9, 30):
+    if datetime.time(15, 0) <= current_time <= datetime.time(16, 30):
         # Load last start time from file
         last_start_time = load_last_start_time('last_start.yaml')
 
@@ -59,11 +60,11 @@ def main():
         if last_start_time is None or last_start_time.get('date') != str(today):
             today = datetime.date.today()
             day_of_week = today.strftime('%A')
-            email_content = load_email_content_from_config('email_content.yaml', day_of_week)
+            email_content = config.get('email_content', {}).get(day_of_week.capitalize(), {}).get('start', '')
 
             for recipient in recipients:
                 subject = f"PF&DPT - praca {today} start"
-                message = email_content['start']
+                message = email_content
                 send_email(sender_email, sender_password, recipient, subject, message)
             print("Start email sent.")
 
@@ -81,14 +82,14 @@ def main():
             if last_start_time is not None and last_start_time.get('date') == str(today):
                 start_time = datetime.datetime.strptime(last_start_time.get('time'), "%Y-%m-%d %H:%M:%S.%f")
                 elapsed_time = datetime.datetime.now() - start_time
-                if elapsed_time >= datetime.timedelta(hours=8, minutes=10):
+                if elapsed_time >= datetime.timedelta(hours=1, minutes=10):
                     # Load email content and send end email
                     day_of_week = today.strftime('%A')
-                    email_content = load_email_content_from_config('email_content.yaml', day_of_week)
+                    email_content = config.get('email_content', {}).get(day_of_week.capitalize(), {}).get('stop', '')
 
                     for recipient in recipients:
                         subject = f"PF&DPT - praca {today} stop"
-                        message = email_content['stop']
+                        message = email_content
                         send_email(sender_email, sender_password, recipient, subject, message)
                     print("Stop email sent.")
 
