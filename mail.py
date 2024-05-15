@@ -1,7 +1,6 @@
 import yaml
 import datetime
 import smtplib
-
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -30,11 +29,11 @@ def save_time_to_yaml(file_path, time):
     with open(file_path, 'w') as file:
         yaml.dump(time, file)
 
-def send_email(sender_email, sender_password, main_recipient, cc_recipients, subject, message):
+def send_email(sender_email, sender_password, recipientsTO, recipientsCC, subject, message):
     msg = MIMEMultipart()
     msg['From'] = sender_email
-    msg['To'] = main_recipient
-    msg['CC'] = ", ".join(cc_recipients)  # Join all CC recipients with a comma
+    msg['To'] = ", ".join(recipientsTO)
+    msg['CC'] = ", ".join(recipientsCC)  # Join all CC recipients with a comma
     msg['Subject'] = subject
     msg.attach(MIMEText(message, 'plain', 'utf-8'))
 
@@ -44,11 +43,10 @@ def send_email(sender_email, sender_password, main_recipient, cc_recipients, sub
     server.send_message(msg)  
     server.quit()
 
-
-
 def main():
     config = load_config('config.yaml')
-    recipients = config.get('recipients', [])
+    recipientsTO = config.get('recipientsTO', [])
+    recipientsCC = config.get('recipientsCC', [])
     sender_email = 'EMAIL'
     sender_password = 'PASSWD'
     current_time = datetime.datetime.now().time()
@@ -61,7 +59,6 @@ def main():
         # If last start time is None or not today, send start email
         today = datetime.date.today()
         if last_start_time is None or last_start_time.get('date') != str(today):
-            today = datetime.date.today()
             day_of_week = today.strftime('%A')
             email_content = config.get('email_content', {}).get(day_of_week.capitalize(), {}).get('start', '')
 
@@ -69,12 +66,8 @@ def main():
             subject = f"PF&DPT - praca {today} start"
             message = email_content
 
-            # Extract main recipient and CC recipients
-            main_recipient = recipients[0]
-            cc_recipients = recipients[1:]
-
             # Send email
-            send_email(sender_email, sender_password, main_recipient, cc_recipients, subject, message)
+            send_email(sender_email, sender_password, recipientsTO, recipientsCC, subject, message)
             print("Start email sent.")
 
             # Update last start time
@@ -100,12 +93,8 @@ def main():
                     subject = f"PF&DPT - praca {today} stop"
                     message = email_content
 
-                    # Extract main recipient and CC recipients
-                    main_recipient = recipients[0]
-                    cc_recipients = recipients[1:]
-
                     # Send email
-                    send_email(sender_email, sender_password, main_recipient, cc_recipients, subject, message)
+                    send_email(sender_email, sender_password, recipientsTO, recipientsCC, subject, message)
                     print("Stop email sent.")
 
                     # Update last end time

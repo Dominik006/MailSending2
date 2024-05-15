@@ -1,5 +1,8 @@
-recipients:
-  - EMAIL
+recipientsTO:
+  - 'main_recipient@example.com'
+recipientsCC:
+  - 'cc_recipient1@example.com'
+  - 'cc_recipient2@example.com'
 
 email_content:
   Monday: 
